@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface MenuItem {
   id: number;
@@ -21,6 +22,13 @@ interface MenuItem {
 
 interface CartItem extends MenuItem {
   quantity: number;
+}
+
+interface PurchaseStats {
+  itemId: number;
+  itemName: string;
+  totalQuantity: number;
+  totalSpent: number;
 }
 
 const menuItems: MenuItem[] = [
@@ -37,7 +45,7 @@ const menuItems: MenuItem[] = [
     name: 'Чизбургер Премиум',
     description: 'Двойная котлета, три вида сыра, карамелизированный лук',
     price: 650,
-    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/5d1d9fc9-ffe6-4064-b8e3-3d4f1b452fae.jpg',
+    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/fee3f792-b193-40b0-9564-25b7088c9365.jpg',
     category: 'burgers'
   },
   {
@@ -45,7 +53,7 @@ const menuItems: MenuItem[] = [
     name: 'Острый чикен бургер',
     description: 'Хрустящая куриная грудка в остром маринаде, халапеньо',
     price: 520,
-    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/5d1d9fc9-ffe6-4064-b8e3-3d4f1b452fae.jpg',
+    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/5de9d0ca-8306-428a-b29c-bc489e81e402.jpg',
     category: 'burgers'
   },
   {
@@ -61,7 +69,7 @@ const menuItems: MenuItem[] = [
     name: 'Картофель по-деревенски',
     description: 'Запеченный картофель с розмарином и чесноком',
     price: 210,
-    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/c132072c-807c-4683-b0cc-cca9c2e8134b.jpg',
+    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/578e48b6-0480-4824-8a15-5cd9bd46e8e3.jpg',
     category: 'sides'
   },
   {
@@ -69,7 +77,7 @@ const menuItems: MenuItem[] = [
     name: 'Кола 0.5л',
     description: 'Освежающий напиток',
     price: 120,
-    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/c132072c-807c-4683-b0cc-cca9c2e8134b.jpg',
+    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/95d54451-920e-4255-9482-7bdd95d3a174.jpg',
     category: 'drinks'
   },
   {
@@ -77,7 +85,7 @@ const menuItems: MenuItem[] = [
     name: 'Милкшейк клубничный',
     description: 'Густой молочный коктейль с натуральной клубникой',
     price: 280,
-    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/c132072c-807c-4683-b0cc-cca9c2e8134b.jpg',
+    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/e3d99512-c3dc-4329-8bf4-2e4fdc0a0c55.jpg',
     category: 'drinks'
   },
   {
@@ -85,7 +93,7 @@ const menuItems: MenuItem[] = [
     name: 'Мороженое шоколадное',
     description: 'Премиальное бельгийское мороженое',
     price: 220,
-    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/c132072c-807c-4683-b0cc-cca9c2e8134b.jpg',
+    image: 'https://cdn.poehali.dev/projects/03664df4-8fda-4e79-a17a-a187a1c13a7c/files/c36dae4f-846b-4635-87b5-53a5bbc913d6.jpg',
     category: 'desserts'
   }
 ];
@@ -96,6 +104,18 @@ export default function Index() {
   const [currentTab, setCurrentTab] = useState('all');
   const [isBalanceSheetOpen, setIsBalanceSheetOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState('');
+  const [purchaseHistory, setPurchaseHistory] = useState<PurchaseStats[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('fastburger_stats');
+    if (saved) {
+      setPurchaseHistory(JSON.parse(saved));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('fastburger_stats', JSON.stringify(purchaseHistory));
+  }, [purchaseHistory]);
 
   const addToCart = (item: MenuItem) => {
     setCart(prev => {
@@ -163,6 +183,25 @@ export default function Index() {
       });
       return;
     }
+
+    setPurchaseHistory(prev => {
+      const updated = [...prev];
+      cart.forEach(cartItem => {
+        const existingStat = updated.find(stat => stat.itemId === cartItem.id);
+        if (existingStat) {
+          existingStat.totalQuantity += cartItem.quantity;
+          existingStat.totalSpent += cartItem.price * cartItem.quantity;
+        } else {
+          updated.push({
+            itemId: cartItem.id,
+            itemName: cartItem.name,
+            totalQuantity: cartItem.quantity,
+            totalSpent: cartItem.price * cartItem.quantity
+          });
+        }
+      });
+      return updated;
+    });
 
     setBalance(prev => prev - cartTotal);
     setCart([]);
@@ -403,6 +442,49 @@ export default function Index() {
           </div>
         </Tabs>
       </section>
+
+      {purchaseHistory.length > 0 && (
+        <section className="container px-4 md:px-8 py-16">
+          <div className="mb-8">
+            <h3 className="text-3xl font-bold mb-2">Статистика покупок</h3>
+            <p className="text-muted-foreground">Сколько вы потратили на каждое блюдо</p>
+          </div>
+
+          <Card>
+            <CardContent className="p-6">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Блюдо</TableHead>
+                    <TableHead className="text-right">Куплено раз</TableHead>
+                    <TableHead className="text-right">Потрачено</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {purchaseHistory
+                    .sort((a, b) => b.totalSpent - a.totalSpent)
+                    .map((stat) => (
+                      <TableRow key={stat.itemId}>
+                        <TableCell className="font-medium">{stat.itemName}</TableCell>
+                        <TableCell className="text-right">{stat.totalQuantity}</TableCell>
+                        <TableCell className="text-right font-semibold">{stat.totalSpent} ₽</TableCell>
+                      </TableRow>
+                    ))}
+                  <TableRow className="bg-secondary/50">
+                    <TableCell className="font-bold">Итого</TableCell>
+                    <TableCell className="text-right font-bold">
+                      {purchaseHistory.reduce((sum, stat) => sum + stat.totalQuantity, 0)}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-accent">
+                      {purchaseHistory.reduce((sum, stat) => sum + stat.totalSpent, 0)} ₽
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       <footer className="border-t mt-16">
         <div className="container px-4 md:px-8 py-8">
